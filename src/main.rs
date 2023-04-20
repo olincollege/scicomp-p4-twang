@@ -24,7 +24,7 @@ where
     T: SizedSample + FromSample<f64>,
 {
     let sample_rate = config.sample_rate.0 as f64;
-    let channels = 1;
+    let channels = config.channels as usize;
     let length = 4.0;
     let waveguide: An<Delay<f64>> = delay(length);
 
@@ -32,12 +32,14 @@ where
 
     let c = noise() >> feedback_loop;
 
-    let mut c = c >> declick() >> dcblock() >> limiter(1.0);
+    let c = c >> pan(0.0);
+    let mut c =
+        c >> (declick() | declick()) >> (dcblock() | dcblock()) >> limiter_stereo((1.0, 5.0));
 
     c.reset(Some(sample_rate));
     c.allocate();
 
-    let mut next_value = move || assert_no_alloc(|| c.get_mono());
+    let mut next_value = move || assert_no_alloc(|| c.get_stereo());
 
     let err_fn = |err| eprintln!("an error occured on stream: {}", err);
     let stream = device.build_output_stream(
@@ -55,16 +57,21 @@ where
     Ok(())
 }
 
-fn write_data<T>(output: &mut [T], channels: usize, next_sample: &mut dyn FnMut() -> f64)
+fn write_data<T>(output: &mut [T], channels: usize, next_sample: &mut dyn FnMut() -> (f64, f64))
 where
     T: SizedSample + FromSample<f64>,
 {
     for frame in output.chunks_mut(channels) {
         let sample = next_sample();
-        let mono = T::from_sample(sample);
+        let left = T::from_sample(sample.0);
+        let right: T = T::from_sample(sample.1);
 
         for (channel, sample) in frame.iter_mut().enumerate() {
-            *sample = mono;
+            if channel & 1 == 0 {
+                *sample = left;
+            } else {
+                *sample = right;
+            }
         }
     }
 }
