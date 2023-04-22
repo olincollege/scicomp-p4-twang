@@ -1,4 +1,5 @@
-use anyhow;
+#![allow(clippy::precedence)]
+
 use assert_no_alloc::*;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{FromSample, SizedSample};
@@ -16,7 +17,12 @@ fn main() {
         .expect("Failed to find a default output device");
     let config = device.default_output_config().unwrap();
 
-    run::<f64>(&device, &config.into()).unwrap();
+    match config.sample_format() {
+        cpal::SampleFormat::F32 => run::<f32>(&device, &config.into()).unwrap(),
+        cpal::SampleFormat::I16 => run::<i16>(&device, &config.into()).unwrap(),
+        cpal::SampleFormat::U16 => run::<u16>(&device, &config.into()).unwrap(),
+        _ => panic!("Unsupported format"),
+    }
 }
 
 fn run<T>(device: &cpal::Device, config: &cpal::StreamConfig) -> Result<(), anyhow::Error>
@@ -25,12 +31,13 @@ where
 {
     let sample_rate = config.sample_rate.0 as f64;
     let channels = config.channels as usize;
-    let length = 4.0;
-    let waveguide: An<Delay<f64>> = delay(length);
+    let length = 0.1;
 
-    let feedback_loop = feedback(waveguide >> lowpass_hz(1000.0, 1.0));
+    let waveguide = delay(length);
 
-    let c = noise() >> feedback_loop;
+    let feedback_loop = feedback2(waveguide, lowpass_hz(440.0, 1.0));
+
+    let c = white() >> feedback_loop;
 
     let c = c >> pan(0.0);
     let mut c =
