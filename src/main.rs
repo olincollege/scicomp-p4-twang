@@ -46,13 +46,13 @@ where
 
     let waveguide = delay(length);
 
-    let feedback_loop = feedback2(waveguide, 0.9 * pass());
+    let feedback_loop = feedback2(waveguide, pass());
 
     let c = pluck >> feedback_loop;
 
     let c = c >> pan(0.0);
-    let mut c =
-        c >> (declick() | declick()) >> (dcblock() | dcblock()) >> limiter_stereo((1.0, 5.0));
+    let mut c = c >> (declick() | declick()) >> (dcblock() | dcblock());
+    let mut c = c >> limiter_stereo((0.5, 1.0)); // comment to disable limiter (helpful for envelope testing)
 
     c.reset(Some(sample_rate));
     c.allocate();
