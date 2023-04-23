@@ -31,13 +31,24 @@ where
 {
     let sample_rate = config.sample_rate.0 as f64;
     let channels = config.channels as usize;
-    let length = 0.1;
+
+    let length = 0.001;
+
+    let pluck_intensity = 1.0;
+    let pluck_position = 0.0; // fractional distance along the string
+    let pluck = constant(pluck_intensity)
+        >> adsr_live(
+            pluck_position * length,
+            1.0 - (pluck_position * length),
+            0.0,
+            0.0,
+        );
 
     let waveguide = delay(length);
 
-    let feedback_loop = feedback2(waveguide, lowpass_hz(440.0, 1.0));
+    let feedback_loop = feedback2(waveguide, 0.9 * pass());
 
-    let c = white() >> feedback_loop;
+    let c = pluck >> feedback_loop;
 
     let c = c >> pan(0.0);
     let mut c =
