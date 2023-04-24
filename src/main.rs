@@ -34,21 +34,40 @@ where
 
     let length = 0.001;
 
+    // define root tone
+    let root_hz = 240.0;
+
+    // let pluck = white();
+    let pluck = triangle_hz(root_hz);
     let pluck_intensity = 1.0;
     let pluck_position = 0.0; // fractional distance along the string
-    let pluck = constant(pluck_intensity)
-        >> adsr_live(
-            pluck_position * length,
-            1.0 - (pluck_position * length),
-            0.0,
-            0.0,
-        );
+                              // let pluck = constant(pluck_intensity);
+                              // >> adsr_live(
+                              //     pluck_position * length,
+                              //     1.0 - (pluck_position * length),
+                              //     0.0,
+                              //     0.0,
+                              // );
 
-    let waveguide = delay(length);
+    // generate resonant harmonics by filtering impulse
+    let harmonic_q = 1000.0;
 
-    let feedback_loop = feedback2(waveguide, pass());
+    // these should be feedbacks instead, but we need to generate an impulse, not constant tone
+    let harmonic_2 = pluck.clone() >> bandpass_hz(root_hz * 2., harmonic_q) * 1.0;
+    let harmonic_3 = pluck.clone() >> bandpass_hz(root_hz * 3., harmonic_q) * 0.001;
+    let harmonic_4 = pluck.clone() >> bandpass_hz(root_hz * 4., harmonic_q) * 1.3;
+    let harmonic_5 = pluck.clone() >> bandpass_hz(root_hz * 5., harmonic_q) * 0.001;
+    let harmonic_6 = pluck.clone() >> bandpass_hz(root_hz * 6., harmonic_q) * 0.5;
 
-    let c = pluck >> feedback_loop;
+    // combine harmonics
+    let harmonics_combined = pluck + harmonic_2 + harmonic_3 + harmonic_4 + harmonic_5 + harmonic_6;
+
+    // let waveguide = delay(length);
+    // let feedback_harmonic_1 = feedback2(waveguide, pass() * 0.0);
+
+    // pass into filter
+    // let c = harmonics_combined >> feedback_harmonic_1;
+    let c = harmonics_combined;
 
     let c = c >> pan(0.0);
     let mut c = c >> (declick() | declick()) >> (dcblock() | dcblock());
