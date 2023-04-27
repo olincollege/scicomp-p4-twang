@@ -51,25 +51,26 @@ fn create_sound(
     pitch_bend: Shared<f64>,
     control: Shared<f64>,
 ) -> Box<dyn AudioUnit64> {
-    // generate root tone. currently fixed due to type mismatch when
-    // passing in pitch to bandpass filters below.
-    // let root_hz = var(&pitch) * var(&pitch_bend);
-    // let pluck = root_hz >> triangle();
+    // experimental feedback loop
+    let length = 0.0001;
+    let waveguide = delay(length);
+    let pluck = feedback2(waveguide, mul(0.95));
+
     let root_hz = 440.;
-    let pluck = triangle_hz(root_hz);
+    // let pluck = triangle_hz(root_hz);
 
     // generate resonant harmonics by filtering impulse
-    let harmonic_q = 1000.0;
+    // let harmonic_q = 1000.0;
 
-    // these should be feedbacks instead, but we need to generate an impulse, not constant tone
-    let harmonic_2 = pluck.clone() >> bandpass_hz(root_hz * 2., harmonic_q) * 1.0;
-    let harmonic_3 = pluck.clone() >> bandpass_hz(root_hz * 3., harmonic_q) * 0.001;
-    let harmonic_4 = pluck.clone() >> bandpass_hz(root_hz * 4., harmonic_q) * 1.3;
-    let harmonic_5 = pluck.clone() >> bandpass_hz(root_hz * 5., harmonic_q) * 0.001;
-    let harmonic_6 = pluck.clone() >> bandpass_hz(root_hz * 6., harmonic_q) * 0.5;
+    // // these should be feedbacks instead, but we need to generate an impulse, not constant tone
+    // let harmonic_2 = pluck.clone() >> bandpass_hz(root_hz * 2., harmonic_q) * 1.0;
+    // let harmonic_3 = pluck.clone() >> bandpass_hz(root_hz * 3., harmonic_q) * 0.001;
+    // let harmonic_4 = pluck.clone() >> bandpass_hz(root_hz * 4., harmonic_q) * 1.3;
+    // let harmonic_5 = pluck.clone() >> bandpass_hz(root_hz * 5., harmonic_q) * 0.001;
+    // let harmonic_6 = pluck.clone() >> bandpass_hz(root_hz * 6., harmonic_q) * 0.5;
 
     // combine harmonics
-    let sound = pluck + harmonic_2 + harmonic_3 + harmonic_4 + harmonic_5 + harmonic_6;
+    let sound = pluck; //+ harmonic_2 + harmonic_3 + harmonic_4 + harmonic_5 + harmonic_6;
 
     // experimental feedback loop
     // let length = 0.001;
