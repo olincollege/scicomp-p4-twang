@@ -52,12 +52,14 @@ fn create_sound(
     control: Shared<f64>,
 ) -> Box<dyn AudioUnit64> {
     // experimental feedback loop
-    let length = 0.0001;
+    let freq = var(&pitch).value();
+    let length = freq.powi(-1);
+    // let length = .002;
+
     let waveguide = delay(length);
     let pluck = feedback2(waveguide, mul(0.95));
 
-    let root_hz = 440.;
-    // let pluck = triangle_hz(root_hz);
+    let impulse = dc(1.0) * (var(&control) >> adsr_live(length / 2., length / 2., 0.0, 0.0));
 
     // generate resonant harmonics by filtering impulse
     // let harmonic_q = 1000.0;
@@ -69,18 +71,14 @@ fn create_sound(
     // let harmonic_5 = pluck.clone() >> bandpass_hz(root_hz * 5., harmonic_q) * 0.001;
     // let harmonic_6 = pluck.clone() >> bandpass_hz(root_hz * 6., harmonic_q) * 0.5;
 
-    // combine harmonics
-    let sound = pluck; //+ harmonic_2 + harmonic_3 + harmonic_4 + harmonic_5 + harmonic_6;
-
-    // experimental feedback loop
-    // let length = 0.001;
-    // let waveguide = delay(length);
-    // let feedback_harmonic_1 = feedback2(waveguide, pass() * 0.0);
+    // signal path
+    let sound = impulse >> pluck;
 
     // limiting, dc control, and declicking for safety
     // let mut sound = sound >> (declick() | declick()) >> (dcblock() | dcblock());
     // let mut sound = sound >> limiter_stereo((0.5, 1.0)); // comment to disable limiter (helpful for envelope testing)
-    Box::new(sound * (var(&control) >> adsr_live(0.0, 0.0, 1.0, 1.0)) * var(&volume))
+    Box::new(sound)
+    // Box::new(sound * (var(&control) >> adsr_live(0.0, 0.0, 1.0, 1.0)))
 }
 
 // (From fundsp/examples/live_adsr.rs)
