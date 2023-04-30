@@ -63,32 +63,35 @@ fn create_sound(
 
     // compute effective waveguide length
     let velocity = sqrt(TENSION / LINEAR_DENSITY);
-    let waveguide_length = STRING_LENGTH / velocity;
-    let waveguide = delay(waveguide_length * 2.0);
-
-    println!("{waveguide_length}");
+    let waveguide_length = 2.0 * STRING_LENGTH / velocity;
+    let waveguide = delay(waveguide_length);
 
     // generate impulse
     let impulse = dc(1.0)
+        * var(&volume)
         * (var(&control) >> adsr_live(waveguide_length / 2., waveguide_length / 2., 0.0, 0.0));
 
     // generate feedback
-    let pluck = feedback2(waveguide, mul(0.995));
+    let string_feedback = feedback2(waveguide, mul(0.995));
+
+    // pluck the string
+    let pluck = impulse >> string_feedback;
 
     // generate resonant harmonics by filtering impulse
-    // let harmonic_q = 1000.0;
+    let harmonic_q = 10.0;
+    let root_freq_hz = waveguide_length.powi(-1);
 
     // // these should be feedbacks instead, but we need to generate an impulse, not constant tone
-    // let harmonic_2 = pluck.clone() >> bandpass_hz(root_hz * 2., harmonic_q) * 1.0;
-    // let harmonic_3 = pluck.clone() >> bandpass_hz(root_hz * 3., harmonic_q) * 0.001;
-    // let harmonic_4 = pluck.clone() >> bandpass_hz(root_hz * 4., harmonic_q) * 1.3;
-    // let harmonic_5 = pluck.clone() >> bandpass_hz(root_hz * 5., harmonic_q) * 0.001;
-    // let harmonic_6 = pluck.clone() >> bandpass_hz(root_hz * 6., harmonic_q) * 0.5;
+    let harmonic_2 = pluck.clone() >> bandpass_hz(root_freq_hz * 2.0, harmonic_q) * 1.0;
+    let harmonic_3 = pluck.clone() >> bandpass_hz(root_freq_hz * 3., harmonic_q) * 0.5;
+    let harmonic_4 = pluck.clone() >> bandpass_hz(root_freq_hz * 4., harmonic_q) * 0.5;
+    let harmonic_5 = pluck.clone() >> bandpass_hz(root_freq_hz * 5., harmonic_q) * 0.3;
+    let harmonic_6 = pluck.clone() >> bandpass_hz(root_freq_hz * 6., harmonic_q) * 0.2;
 
     // chain signals together into path
-    let sound = impulse >> pluck;
+    let sound = pluck + harmonic_2 + harmonic_3 + harmonic_4 + harmonic_5 + harmonic_6;
 
-    // limiting, dc control, and declicking for safety
+    // (experimental) limiting, dc control, and declicking for safety
     // let mut sound = sound >> (declick() | declick()) >> (dcblock() | dcblock());
     // let mut sound = sound >> limiter_stereo((0.5, 1.0)); // comment to disable limiter (helpful for envelope testing)
     Box::new(sound)
