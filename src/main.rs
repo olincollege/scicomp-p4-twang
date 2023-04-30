@@ -14,6 +14,10 @@ use read_input::prelude::*;
 #[global_allocator]
 static A: AllocDisabler = AllocDisabler;
 
+static TENSION: f64 = 48.86; // B string tension (N)
+static LINEAR_DENSITY: f64 = 0.000477; // B string linear density (Kg/m)
+static STRING_LENGTH: f64 = 0.64; // string length (meters)
+
 fn main() -> anyhow::Result<()> {
     let mut midi_in = MidiInput::new("midir reading input")?;
     let in_port = get_midi_device(&mut midi_in)?;
@@ -51,15 +55,25 @@ fn create_sound(
     pitch_bend: Shared<f64>,
     control: Shared<f64>,
 ) -> Box<dyn AudioUnit64> {
-    // experimental feedback loop
-    let freq = var(&pitch).value();
-    let length = freq.powi(-1);
-    // let length = .002;
+    // (experimental) get pitch from midi, handle div by zero errors
+    // let mut freq = var(&pitch).value();
+    // if freq == 0.0 {
+    //     freq = freq + 1.0;
+    // }
 
-    let waveguide = delay(length);
-    let pluck = feedback2(waveguide, mul(0.95));
+    // compute effective waveguide length
+    let velocity = sqrt(TENSION / LINEAR_DENSITY);
+    let waveguide_length = STRING_LENGTH / velocity;
+    let waveguide = delay(waveguide_length * 2.0);
 
-    let impulse = dc(1.0) * (var(&control) >> adsr_live(length / 2., length / 2., 0.0, 0.0));
+    println!("{waveguide_length}");
+
+    // generate impulse
+    let impulse = dc(1.0)
+        * (var(&control) >> adsr_live(waveguide_length / 2., waveguide_length / 2., 0.0, 0.0));
+
+    // generate feedback
+    let pluck = feedback2(waveguide, mul(0.995));
 
     // generate resonant harmonics by filtering impulse
     // let harmonic_q = 1000.0;
@@ -71,14 +85,13 @@ fn create_sound(
     // let harmonic_5 = pluck.clone() >> bandpass_hz(root_hz * 5., harmonic_q) * 0.001;
     // let harmonic_6 = pluck.clone() >> bandpass_hz(root_hz * 6., harmonic_q) * 0.5;
 
-    // signal path
+    // chain signals together into path
     let sound = impulse >> pluck;
 
     // limiting, dc control, and declicking for safety
     // let mut sound = sound >> (declick() | declick()) >> (dcblock() | dcblock());
     // let mut sound = sound >> limiter_stereo((0.5, 1.0)); // comment to disable limiter (helpful for envelope testing)
     Box::new(sound)
-    // Box::new(sound * (var(&control) >> adsr_live(0.0, 0.0, 1.0, 1.0)))
 }
 
 // (From fundsp/examples/live_adsr.rs)
