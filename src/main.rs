@@ -71,8 +71,12 @@ fn create_sound(
         * var(&volume)
         * (var(&control) >> adsr_live(waveguide_length / 2., waveguide_length / 2., 0.0, 0.0));
 
+    // options for feedback gain
+    // let feedback_gain = mul(0.995);
+    let feedback_gain = fir((0.5, 0.5));
+    
     // generate feedback
-    let string_feedback = feedback2(waveguide, mul(0.995));
+    let string_feedback = feedback2(waveguide, feedback_gain);
 
     // pluck the string
     let pluck = impulse >> string_feedback;
