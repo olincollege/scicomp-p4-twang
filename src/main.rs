@@ -14,25 +14,32 @@ use read_input::prelude::*;
 #[global_allocator]
 static A: AllocDisabler = AllocDisabler;
 
+// Globally defined string parameters.
+// Update these to modify what string is played, or to "tune" the existing string.
 static TENSION: f64 = 48.86; // B string tension (N)
 static LINEAR_DENSITY: f64 = 0.000477; // B string linear density (Kg/m)
 static STRING_LENGTH: f64 = 0.64; // string length (meters)
 
+// Main call that runs when program starts
 fn main() -> anyhow::Result<()> {
     let mut midi_in = MidiInput::new("midir reading input")?;
     let in_port = get_midi_device(&mut midi_in)?;
 
+    // set up shared variables
     let pitch = shared(0.0);
     let volume = shared(0.0);
     let pitch_bend = shared(1.0);
     let control = shared(0.0);
 
+    // initialize output
     run_output(
         pitch.clone(),
         volume.clone(),
         pitch_bend.clone(),
         control.clone(),
     );
+
+    // initialize midi input (non-blocking)
     run_input(midi_in, in_port, pitch, volume, pitch_bend, control)
 }
 
@@ -42,8 +49,11 @@ fn main() -> anyhow::Result<()> {
 /// * The `adsr_live()` modulates the volume of the sound over time. Play around with the different
 ///   values to get a feel for the impact of different ADSR levels. The `control` `shared()` is set
 ///   to 1.0 to start the attack and 0.0 to start the release.
-/// * Finally, we modulate the volume further using the MIDI velocity.
-///
+/// * Then, we modulate the volume further using the MIDI velocity.
+/// * Note that the `pitch` and `pitch_bend` parameters are not used currently.
+///   Additional work would need to be done in order to integrate midi, as currently the
+///   frequency produced is determined by a waveguide (delay) of fixed timing, and this would need to
+///   be updated when a note changes or a new guitar string would need to be spawned.
 fn create_sound(
     pitch: Shared<f64>,
     volume: Shared<f64>,
@@ -66,13 +76,13 @@ fn create_sound(
         * var(&volume)
         * (var(&control) >> adsr_live(waveguide_length / 2., waveguide_length / 2., 0.0, 0.0));
 
-    // options for feedback gain
+    // options for feedback gain - each time the sample passes through it gets multipled by 0.995
     let feedback_gain = mul(0.995);
 
-    // generate feedback
+    // generate feedback with a delay loop
     let string_feedback = feedback2(waveguide, feedback_gain);
 
-    // pluck the string
+    // pluck the string by passing the impulse into the delay loop
     let pluck = impulse >> string_feedback;
 
     // generate resonant harmonics by filtering impulse
