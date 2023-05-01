@@ -38,12 +38,7 @@ fn main() -> anyhow::Result<()> {
 
 /// (Partially from fundsp/examples/live_adsr.rs)
 /// This function is where the `adsr_live()` function is employed. The `shared()` objects are wrapped
-/// in `var()` objects in order to be placed in the signal graph. We have the following signal
-/// chain in place:
-///
-/// * The `pitch_bend` value (determined by MIDI `PitchBend` messages) is multiplied by the pitch.
-/// * The `triangle()` transforms the envelope output into a triangle waveform. For different
-///   sounds, try out some different waveform functions here!
+/// in `var()` objects in order to be placed in the signal graph.
 /// * The `adsr_live()` modulates the volume of the sound over time. Play around with the different
 ///   values to get a feel for the impact of different ADSR levels. The `control` `shared()` is set
 ///   to 1.0 to start the attack and 0.0 to start the release.
@@ -72,9 +67,8 @@ fn create_sound(
         * (var(&control) >> adsr_live(waveguide_length / 2., waveguide_length / 2., 0.0, 0.0));
 
     // options for feedback gain
-    // let feedback_gain = mul(0.995);
-    let feedback_gain = fir((0.5, 0.5));
-    
+    let feedback_gain = mul(0.995);
+
     // generate feedback
     let string_feedback = feedback2(waveguide, feedback_gain);
 
